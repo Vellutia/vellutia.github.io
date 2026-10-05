@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="Backend-only reporting automation for our own Shopee Indonesia shops.">
+  <title>WBS Reporting</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .diagram .box { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; }
+    .diagram .core { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+    .diagram .t { fill: var(--text); font: 600 13px system-ui, sans-serif; }
+    .diagram .s { fill: var(--muted); font: 11.5px system-ui, sans-serif; }
+    .diagram .arrow { stroke: var(--muted); stroke-width: 1.5; fill: none; marker-end: url(#head); }
+    .diagram .head { fill: var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <span class="tag">Internal tool · backend-only</span>
+    <h1>WBS Reporting</h1>
+    <p class="lede">A backend automation service for reporting and scheduling, used internally for our own five Shopee Indonesia shops.</p>
+
+    <div class="card">
+      <strong>No user interface.</strong> The service has no frontend, no login page and no public access. It runs as scheduled jobs on our own server and sends its results to our staff's private Telegram group and private Google Sheets. This page only describes the service.
+    </div>
+
+    <h2>What it does</h2>
+    <table>
+      <thead><tr><th>Job</th><th>Purpose</th><th>Runs</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Price check</strong></td>
+          <td>For orders completed the previous day, compares the price each item sold for against the shop's own active promotion price, and flags items sold more than 2% below it (for example a wrong discount setting).</td>
+          <td>Daily, 17:00 WIB</td>
+        </tr>
+        <tr>
+          <td><strong>Failed-delivery returns</strong></td>
+          <td>Adds failed-delivery parcels to our returns list, matches them with the parcels our warehouse scanned back in, and lists parcels that have not arrived after 24 hours so staff can follow up.</td>
+          <td>Daily, 19:00 WIB</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>How data flows</h2>
+    <div class="card">
+      <svg class="diagram" viewBox="0 0 720 270" role="img" aria-label="Data flow: Shopee Open Platform API, Seller Center export and warehouse scans go into scheduled jobs on our server, which write to private Google Sheets and a private Telegram group.">
+        <defs>
+          <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path class="head" d="M0,0 L10,5 L0,10 z"/>
+          </marker>
+        </defs>
+        <rect class="box" x="10" y="20" width="200" height="64" rx="10"/>
+        <text class="t" x="24" y="46">Shopee Open Platform API</text>
+        <text class="s" x="24" y="66">read-only: orders, escrow, discounts</text>
+
+        <rect class="box" x="10" y="103" width="200" height="64" rx="10"/>
+        <text class="t" x="24" y="129">Seller Center export</text>
+        <text class="s" x="24" y="149">failed deliveries (API planned)</text>
+
+        <rect class="box" x="10" y="186" width="200" height="64" rx="10"/>
+        <text class="t" x="24" y="212">Warehouse scans</text>
+        <text class="s" x="24" y="232">daily sheet from our staff</text>
+
+        <rect class="core" x="265" y="85" width="190" height="100" rx="12"/>
+        <text class="t" x="281" y="117">Scheduled jobs</text>
+        <text class="s" x="281" y="139">TypeScript on our server</text>
+        <text class="s" x="281" y="157">no UI · no public access</text>
+
+        <rect class="box" x="510" y="55" width="200" height="64" rx="10"/>
+        <text class="t" x="524" y="81">Google Sheets (private)</text>
+        <text class="s" x="524" y="101">returns and claim lists</text>
+
+        <rect class="box" x="510" y="151" width="200" height="64" rx="10"/>
+        <text class="t" x="524" y="177">Telegram group (private)</text>
+        <text class="s" x="524" y="197">daily summaries for staff</text>
+
+        <path class="arrow" d="M210,52 C240,52 240,115 263,115"/>
+        <path class="arrow" d="M210,135 L263,135"/>
+        <path class="arrow" d="M210,218 C240,218 240,155 263,155"/>
+        <path class="arrow" d="M455,120 C480,120 480,87 508,87"/>
+        <path class="arrow" d="M455,150 C480,150 480,183 508,183"/>
+      </svg>
+    </div>
+
+    <h2>Shopee Open Platform APIs</h2>
+    <p>All calls are read-only. The service never changes anything in our shops.</p>
+    <table>
+      <thead><tr><th>In use</th><th>Planned</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>
+            <code>v2.payment.get_escrow_list</code><br>
+            <code>v2.payment.get_escrow_detail</code><br>
+            <code>v2.order.get_order_detail</code><br>
+            <code>v2.discount.get_discount_list</code><br>
+            <code>v2.discount.get_discount</code><br>
+            <code>v2.shop.get_shop_info</code>
+          </td>
+          <td>
+            <code>v2.order.get_order_list</code><br>
+            <code>v2.logistics.get_tracking_info</code><br>
+            <code>v2.logistics.get_tracking_number</code><br>
+            <code>v2.shop_flash_sale.*</code> (read endpoints)
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Data handling</h2>
+    <ul>
+      <li>Only our own shops are connected, each authorized by us in the Shopee Open Platform Console.</li>
+      <li>The service does not store buyer personal data (names, phone numbers, addresses). Reports contain order numbers, waybill numbers, item names and prices.</li>
+      <li>Results go only to a private Telegram group and private Google Sheets used by our staff. Nothing is shared with third parties.</li>
+      <li>API credentials are kept in the server's private configuration, never in source code or on this site.</li>
+    </ul>
+
+    <h2>Example report</h2>
+    <p class="muted">A daily returns summary as it appears in our Telegram group. <strong>Dummy data</strong>; real reports are in Bahasa Indonesia.</p>
+    <pre>📦 Retur Pengiriman Gagal — 2026-10-04
+
+Ditambahkan ke master export: 42 (SHOP A 18, SHOP B 24)
+Scan gudang ditambahkan ke SCAN GUDANG ALL TIME: 37
+Ditandai "SUDAH DI TERIMA": 35
+Belum diterima gudang (perlu klaim): 3 — 3 baru masuk daftar klaim
+
+• SPXID000000000001 SHOP A · export 2026-10-04 (1 hari)
+• SPXID000000000002 SHOP B · export 2026-10-03 (2 hari)
+• SPXID000000000003 SHOP B · export 2026-10-03 (2 hari)</pre>
+
+    <h2>Shop authorization</h2>
+    <p>This site also hosts the page <a href="/callback/">/callback/</a>. Shopee redirects there after we authorize one of our shops in the Console, so we can copy the one-time authorization code into the service. That page only displays the code in the browser; it sends nothing anywhere.</p>
+
+    <footer>Internal tool. Not a public product or service.</footer>
+  </main>
+</body>
+</html>

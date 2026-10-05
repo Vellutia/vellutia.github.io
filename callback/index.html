@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The authorization code is in this page's URL: never leak it via the Referer header. -->
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <title>Shopee authorization — WBS Reporting</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main>
+    <span class="tag">Shop authorization</span>
+    <h1>Authorization result</h1>
+    <p class="lede">Shopee sends the browser here after a shop is authorized for <a href="/wbs-reporting/">WBS Reporting</a>. This page only shows the values from the address bar. It sends nothing anywhere.</p>
+
+    <div id="empty" class="card" hidden>
+      No authorization code in the address. This page is only useful right after authorizing a shop in the Shopee Open Platform Console.
+    </div>
+
+    <div id="error" class="card" hidden>
+      <strong>Shopee returned an error:</strong>
+      <pre id="error-text"></pre>
+    </div>
+
+    <div id="result" hidden>
+      <div class="card">
+        <div id="fields"></div>
+        <p class="muted" style="margin:0">The code works once and expires about 10 minutes after it was issued.</p>
+      </div>
+
+      <div id="command-card" class="card" hidden>
+        <strong>Run in the project folder:</strong>
+        <div class="row">
+          <code id="command"></code>
+          <button type="button" data-copy="command">Copy</button>
+        </div>
+      </div>
+
+      <div id="main-account" class="card" hidden>
+        This was a <strong>main account</strong> authorization (<code>main_account_id</code> instead of <code>shop_id</code>). The CLI's <code>shopee:token</code> command currently handles single-shop authorizations only.
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var show = function (id) { document.getElementById(id).hidden = false; };
+
+      var error = params.get('error') || params.get('message');
+      if (error) {
+        document.getElementById('error-text').textContent = error;
+        show('error');
+      }
+
+      var code = params.get('code');
+      if (!code) {
+        if (!error) show('empty');
+        return;
+      }
+
+      // Show every parameter Shopee sent, highlighting the ones the CLI needs.
+      var fields = document.getElementById('fields');
+      params.forEach(function (value, key) {
+        var label = document.createElement('div');
+        label.className = 'muted';
+        label.textContent = key;
+        var row = document.createElement('div');
+        row.className = 'row';
+        var valueEl = document.createElement('code');
+        valueEl.id = 'param-' + key;
+        valueEl.textContent = value;
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = 'Copy';
+        button.setAttribute('data-copy', valueEl.id);
+        row.appendChild(valueEl);
+        row.appendChild(button);
+        fields.appendChild(label);
+        fields.appendChild(row);
+      });
+
+      var shopId = params.get('shop_id');
+      if (shopId && /^\d+$/.test(shopId) && /^[A-Za-z0-9]+$/.test(code)) {
+        document.getElementById('command').textContent = 'pnpm cli shopee:token --code ' + code + ' --shop-id ' + shopId;
+        show('command-card');
+      }
+      if (params.get('main_account_id')) show('main-account');
+      show('result');
+
+      document.addEventListener('click', function (event) {
+        var target = event.target.closest('[data-copy]');
+        if (!target) return;
+        var text = document.getElementById(target.getAttribute('data-copy')).textContent;
+        navigator.clipboard.writeText(text).then(function () {
+          target.textContent = 'Copied';
+          setTimeout(function () { target.textContent = 'Copy'; }, 1500);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
